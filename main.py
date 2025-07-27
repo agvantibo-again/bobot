@@ -1,7 +1,6 @@
 import telebot as tb
+from telebot import formatting
 import phonenumbers
-
-import enum
 
 # Read token from file
 with open("./.token", "r") as file:
@@ -10,10 +9,18 @@ with open("./.token", "r") as file:
 bot = tb.TeleBot(token)
 userdb = dict()
 menudb = dict()
+categories = {
+    "Напитки": "drinks",
+    "Комбо": "combo",
+    "Десерты": "desserts",
+    "Сеты": "sets",
+    "Роллы": "rolls",
+    "Онигири": "onigiri",
+    "Супы": "soups",
+    "Салаты": "salads",
+}
 
 notify_cids = [-1002574327978]
-
-# class FoodCategory(enum.Enum):
 
 
 class Food:
@@ -29,8 +36,9 @@ class Food:
 
 class User:
     uid = 0
-    uname = None
-    phone = None
+    uname = str()
+    phone = phonenumbers.PhoneNumber()
+    sel = None
     cart = list()
 
     def __init__(self, new_uid, new_uname):
@@ -50,6 +58,32 @@ class User:
             self.phone, phonenumbers.PhoneNumberFormat.NATIONAL
         )
 
+    def add2cart(self, food):
+        for i_item in range(len(self.cart)):
+            if self.cart[i_item][0].id == food.id:
+                self.cart[i_item][1] += 1
+                return True
+        self.cart.append([food, 1])
+
+        return True
+
+    def rm_cart(self, food):
+        for i_item in range(len(self.cart)):
+            if self.cart[i_item][0].id == food.id:
+                self.cart[i_item][1] -= 1
+            if self.cart[i_item][1] <= 0:
+                self.cart.pop(i_item)
+                return True
+
+        return False
+
+    def print_cart(self):
+        ret = ["У Вас в корзине:"]
+        for item in self.cart:
+            ret.append(f"{formatting.hbold(str(item[1]))}x {item[0].pretty_name}")
+
+        return "\n".join(ret)
+
     def __repr__(self):
         return f"Пользователь {self.uname}/{self.uid} | тел {self.print_phone()}"
 
@@ -61,12 +95,26 @@ for food in menu_list:
         menudb[food.category] = list()
     menudb[food.category].append(food)
 
+menu_category_items = list()
+menu_category_kbd = tb.types.InlineKeyboardMarkup(row_width=2)
+
+for key in categories.keys():
+    menu_category_items.append(
+        tb.types.InlineKeyboardButton(text=key, callback_data="m_" + categories[key])
+    )
+
+menu_category_items.append(
+    tb.types.InlineKeyboardButton(text="🛒 Корзина", callback_data="m_cart")
+)
+menu_category_kbd.add(*menu_category_items)
+
 # Commands definition
 c_start = tb.types.BotCommand(command="start", description="Начало работы с ботом")
 c_phone = tb.types.BotCommand(command="phone", description="Наcтройка номера телефона")
 c_menu = tb.types.BotCommand(command="menu", description="Выбрать еду из меню")
+c_cart = tb.types.BotCommand(command="cart", description="Редактировать корзину")
 c_out = tb.types.BotCommand(command="checkout", description="Оформить заказ")
-bot.set_my_commands([c_start, c_phone, c_menu, c_out])
+bot.set_my_commands([c_start, c_phone, c_menu, c_cart, c_out])
 
 
 @bot.message_handler(commands=["start"])
@@ -80,7 +128,7 @@ def on_start(message):
 
     bot.send_message(message.chat.id, f"Добрый день, @{message.from_user.username}")
 
-    if not userdb[message.from_user.id].phone:
+    if not userdb[message.from_user.id].phone.national_number:
         prompt_phone(message)
     else:
         verify_phone(message)
@@ -115,35 +163,33 @@ def get_phone(message):
 
 @bot.message_handler(commands=["menu"])
 def menu(message):
-    kbd = tb.types.InlineKeyboardMarkup(row_width=2)
-    items = (
-        tb.types.InlineKeyboardButton(text="Комбо", callback_data="m_combo"),
-        tb.types.InlineKeyboardButton(text="Напитки", callback_data="m_drinks"),
-        tb.types.InlineKeyboardButton(text="Десерты", callback_data="m_desserts"),
-        tb.types.InlineKeyboardButton(text="Сеты", callback_data="m_sets"),
-        tb.types.InlineKeyboardButton(text="Роллы", callback_data="m_rolls"),
-        tb.types.InlineKeyboardButton(text="Онигири", callback_data="m_onigiri"),
-        tb.types.InlineKeyboardButton(text="Супы", callback_data="m_soups"),
-        tb.types.InlineKeyboardButton(text="Салаты", callback_data="m_salads"),
-        tb.types.InlineKeyboardButton(text="Перейти в корзину", callback_data="m_cart"),
-    )
-    kbd.add(*items)
+    global menu_category_kbd
 
     with open("./assets/menu.png", "rb") as pic:
         bot.send_photo(
             message.chat.id,
             pic,
-            caption=f"Здесь должно быть меню, но его съел зайчик >;3",
-            show_caption_above_media=True,
-            reply_markup=kbd,
+            caption="Здесь должно быть меню, но его съел зайчик >;3",
+            reply_markup=menu_category_kbd,
         )
 
 
 @bot.callback_query_handler(func=lambda a: "m_" in a.data)
+# m_ are global menu categories
 def menu_category(callback):
+    global menu_category_kbd
+
     cb = callback.data.split("_")[1]
+
     if cb == "menu":
-        menu(callback.message)
+        bot.edit_message_caption(
+            caption="Здесь должно быть меню, но его съел зайчик >;3",
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.id,
+            reply_markup=menu_category_kbd,
+        )
+    elif cb == "cart":
+        cart(callback.message)
     elif cb not in menudb.keys():
         bot.send_message(
             callback.message.chat.id,
@@ -163,16 +209,54 @@ def menu_category(callback):
         )
 
         kbd.add(*buttons)
-        bot.send_message(
-            callback.message.chat.id, "Вот, что мы можем предложить:", reply_markup=kbd
+        bot.edit_message_caption(
+            caption=callback.message.caption,
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.id,
+            reply_markup=kbd,
         )
+
+
+@bot.callback_query_handler(func=lambda a: "f_" in a.data)
+# f_ are individual food items
+def menu_order(callback):
+    cb = callback.data.split("_")[1]
+    food = None
+
+    for key in menudb.keys():
+        for try_food in menudb[key]:
+            if cb == try_food.id:
+                food = try_food
+
+    if not food:
+        raise KeyError
+
+    print(
+        f"Menu order {food.pretty_name} chat.id {callback.message.chat.id} user.id {callback.message.from_user.id}"
+    )
+
+    userdb[callback.message.chat.id].add2cart(food)
+
+    bot.send_message(
+        callback.message.chat.id,
+        f"{formatting.hitalic(food.pretty_name)} добавлен в корзину",
+        parse_mode="HTML",
+    )
+
+
+@bot.message_handler(commands=["cart"])
+def cart(message):
+    bot.send_message(
+        message.chat.id, userdb[message.chat.id].print_cart(), parse_mode="HTML"
+    )
+    print(userdb)
 
 
 @bot.message_handler(commands=["id"])
 def id(message):
     bot.send_message(
         message.chat.id,
-        f"DEBUG|\nUID: {tb.formatting.hpre(str(message.from_user.id))} CID: {tb.formatting.hpre(str(message.chat.id))}",
+        f"DEBUG|\nUID: {formatting.hpre(str(message.from_user.id))} CID: {formatting.hpre(str(message.chat.id))}",
         parse_mode="HTML",
     )
 

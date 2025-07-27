@@ -15,9 +15,10 @@ notify_cids = [-1002574327978]
 
 # class FoodCategory(enum.Enum):
 
+
 class Food:
-    id = 'bytes'
-    category = 'bits'
+    id = "bytes"
+    category = "bits"
     pretty_name = "Программистские Биты"
 
     def __init__(self, new_id, new_category, new_name):
@@ -45,15 +46,15 @@ class User:
             return False
 
     def print_phone(self):
-        return phonenumbers.format_number(self.phone, phonenumbers.PhoneNumberFormat.NATIONAL)
+        return phonenumbers.format_number(
+            self.phone, phonenumbers.PhoneNumberFormat.NATIONAL
+        )
 
     def __repr__(self):
         return f"Пользователь {self.uname}/{self.uid} | тел {self.print_phone()}"
 
 
-menu_list = (
-    Food("chuka", "salads", "Салат Чука"),
-)
+menu_list = (Food("chuka", "salads", "Салат Чука"),)
 
 for food in menu_list:
     if food.category not in menudb.keys():
@@ -71,9 +72,11 @@ bot.set_my_commands([c_start, c_phone, c_menu, c_out])
 @bot.message_handler(commands=["start"])
 def on_start(message):
     if message.from_user.id not in userdb.keys():
-        userdb[message.from_user.id] = User(message.from_user.id, message.from_user.username)
+        userdb[message.from_user.id] = User(
+            message.from_user.id, message.from_user.username
+        )
 
-    bot.set_chat_menu_button(message.chat.id, tb.types.MenuButtonCommands('commands'))
+    bot.set_chat_menu_button(message.chat.id, tb.types.MenuButtonCommands("commands"))
 
     bot.send_message(message.chat.id, f"Добрый день, @{message.from_user.username}")
 
@@ -86,19 +89,24 @@ def on_start(message):
 def verify_phone(message):
     bot.send_message(
         message.chat.id,
-        f'''Ваш номер телефона зарегистрирован как {userdb[message.from_user.id].print_phone()}
-Вы всегда можете изменить его командой /phone'''
+        f"""Ваш номер телефона зарегистрирован как {userdb[message.from_user.id].print_phone()}
+Вы всегда можете изменить его командой /phone""",
     )
+
 
 @bot.message_handler(commands=["phone"])
 def prompt_phone(message):
-    bot.send_message(message.chat.id, f"Пожалуйста укажите номер телефона для оформления заказа")
+    bot.send_message(
+        message.chat.id, f"Пожалуйста укажите номер телефона для оформления заказа"
+    )
     bot.register_next_step_handler(message, get_phone)
 
 
 def get_phone(message):
     if not userdb[message.from_user.id].set_phone(message.text):
-        bot.send_message(message.chat.id, f"Я не понимаю такой формат телефонного номера")
+        bot.send_message(
+            message.chat.id, f"Я не понимаю такой формат телефонного номера"
+        )
         prompt_phone(message)
     else:
         verify_phone(message)
@@ -122,7 +130,13 @@ def menu(message):
     kbd.add(*items)
 
     with open("./assets/menu.png", "rb") as pic:
-        bot.send_photo(message.chat.id, pic, caption=f"Здесь должно быть меню, но его съел зайчик >;3", show_caption_above_media=True, reply_markup=kbd)
+        bot.send_photo(
+            message.chat.id,
+            pic,
+            caption=f"Здесь должно быть меню, но его съел зайчик >;3",
+            show_caption_above_media=True,
+            reply_markup=kbd,
+        )
 
 
 @bot.callback_query_handler(func=lambda a: "m_" in a.data)
@@ -131,21 +145,36 @@ def menu_category(callback):
     if cb == "menu":
         menu(callback.message)
     elif cb not in menudb.keys():
-        bot.send_message(callback.message.chat.id, "К сожалению, наши зайчики пока не готовят эту категорию :<")
+        bot.send_message(
+            callback.message.chat.id,
+            "К сожалению, наши зайчики пока не готовят эту категорию :<",
+        )
     else:
         kbd = tb.types.InlineKeyboardMarkup(row_width=2)
         buttons = list()
         for food in menudb[cb]:
-            buttons.append(tb.types.InlineKeyboardButton(text=food.pretty_name, callback_data=f"f_{food.id}"))
-        buttons.append(tb.types.InlineKeyboardButton(text="⏎ Назад", callback_data="m_menu"))
+            buttons.append(
+                tb.types.InlineKeyboardButton(
+                    text=food.pretty_name, callback_data=f"f_{food.id}"
+                )
+            )
+        buttons.append(
+            tb.types.InlineKeyboardButton(text="⏎ Назад", callback_data="m_menu")
+        )
 
         kbd.add(*buttons)
-        bot.send_message(callback.message.chat.id, "Вот, что мы можем предложить:", reply_markup=kbd)
+        bot.send_message(
+            callback.message.chat.id, "Вот, что мы можем предложить:", reply_markup=kbd
+        )
 
 
 @bot.message_handler(commands=["id"])
 def id(message):
-    bot.send_message(message.chat.id, f"DEBUG|\nUID: {tb.formatting.hpre(str(message.from_user.id))} CID: {tb.formatting.hpre(str(message.chat.id))}", parse_mode='HTML')
+    bot.send_message(
+        message.chat.id,
+        f"DEBUG|\nUID: {tb.formatting.hpre(str(message.from_user.id))} CID: {tb.formatting.hpre(str(message.chat.id))}",
+        parse_mode="HTML",
+    )
 
 
 @bot.message_handler(commands=["checkout"])

@@ -2,6 +2,7 @@ import telebot as tb
 from telebot import formatting
 import phonenumbers
 
+
 # Read token from file
 with open("./.token", "r") as file:
     token = file.read().rstrip("\n")
@@ -32,6 +33,9 @@ class Food:
         self.id = new_id
         self.category = new_category
         self.pretty_name = new_name
+
+    def __repr__(self):
+        return f"Блюдо {self.pretty_name} ({self.id})"
 
 
 class User:
@@ -64,8 +68,15 @@ class User:
                 self.cart[i_item][1] += 1
                 return True
         self.cart.append([food, 1])
+        self.prune()
 
         return True
+
+    def set_in_cart(self, food, n):
+        for i_item in range(len(self.cart)):
+            if self.cart[i_item][0].id == food.id:
+                self.cart[i_item][1] = n
+                self.prune()
 
     def rm_cart(self, food):
         for i_item in range(len(self.cart)):
@@ -73,14 +84,25 @@ class User:
                 self.cart[i_item][1] -= 1
             if self.cart[i_item][1] <= 0:
                 self.cart.pop(i_item)
+                self.prune()
                 return True
 
         return False
 
+    def prune(self):
+        kill_list = list()
+        for i_item in range(len(self.cart)):
+            if not self.cart[i_item][1]:
+                kill_list.append(i_item)
+
+        for i in kill_list:
+            print(f"Pruned {self.cart[i]}")
+            self.cart.pop(i)
+
     def print_cart(self):
         ret = ["У Вас в корзине:"]
-        for item in self.cart:
-            ret.append(f"{formatting.hbold(str(item[1]))}x {item[0].pretty_name}")
+        for food, n in self.cart:
+            ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name}")
 
         return "\n".join(ret)
 
@@ -89,6 +111,21 @@ class User:
 
 
 menu_list = (Food("chuka", "salads", "Салат Чука"),)
+
+
+def food_by_id(id):
+    food = None
+
+    for key in menudb.keys():
+        for try_food in menudb[key]:
+            if id == try_food.id:
+                food = try_food
+
+    if not food:
+        raise KeyError
+
+    return food
+
 
 for food in menu_list:
     if food.category not in menudb.keys():
@@ -183,13 +220,15 @@ def menu_category(callback):
 
     if cb == "menu":
         bot.edit_message_caption(
-            caption="Здесь должно быть меню, но его съел зайчик >;3",
+            caption="Вот, что мы можем предложить:",
             chat_id=callback.message.chat.id,
             message_id=callback.message.id,
             reply_markup=menu_category_kbd,
         )
     elif cb == "cart":
         cart(callback.message)
+    elif cb == "order":
+        checkout(callback.message)
     elif cb not in menudb.keys():
         bot.send_message(
             callback.message.chat.id,
@@ -221,15 +260,8 @@ def menu_category(callback):
 # f_ are individual food items
 def menu_order(callback):
     cb = callback.data.split("_")[1]
-    food = None
 
-    for key in menudb.keys():
-        for try_food in menudb[key]:
-            if cb == try_food.id:
-                food = try_food
-
-    if not food:
-        raise KeyError
+    food = food_by_id(cb)
 
     print(
         f"Menu order {food.pretty_name} chat.id {callback.message.chat.id} user.id {callback.message.from_user.id}"
@@ -246,10 +278,89 @@ def menu_order(callback):
 
 @bot.message_handler(commands=["cart"])
 def cart(message):
+    user = userdb[message.chat.id]
+    kbd = tb.types.InlineKeyboardMarkup(row_width=2)
+    items = []
+
+    for food, q in user.cart:
+        items.append(
+            tb.types.InlineKeyboardButton(
+                text=food.pretty_name, callback_data="c_" + food.id
+            )
+        )
+
+    items.append(
+        tb.types.InlineKeyboardButton(text="📦🚀 Заказать", callback_data="m_order")
+    )
+
+    kbd.add(*items)
+
     bot.send_message(
-        message.chat.id, userdb[message.chat.id].print_cart(), parse_mode="HTML"
+        message.chat.id,
+        user.print_cart()
+        + "\n\n"
+        + "Чтобы отредактировать количество, выберите товар из корзины",
+        parse_mode="HTML",
+        reply_markup=kbd,
     )
     print(userdb)
+
+
+@bot.callback_query_handler(func=lambda a: "c_" in a.data)
+def cart_edit_callback(callback):
+    cb = callback.data.split("_")[1]
+    cart_edit(callback.message, cb)
+
+    # Кнопочный интерфейс редактирования корзины
+    # kbd = tb.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+    # items = [
+    #     tb.types.KeyboardButton(text="➕"),
+    #     tb.types.KeyboardButton(text="➖"),
+    #     tb.types.KeyboardButton(text="🗑️"),
+    #     tb.types.KeyboardButton(text="⏎ Назад")
+    # ]
+    # kbd.add(*items)
+
+
+def cart_edit(message, food_id):
+    user = userdb[message.chat.id]
+    user.sel = food_by_id(food_id)
+
+    kbd = tb.types.ReplyKeyboardMarkup(
+        row_width=5,
+        resize_keyboard=True,
+        one_time_keyboard=True,
+        input_field_placeholder="Количество для заказа числом",
+    )
+    items = [
+        tb.types.KeyboardButton(text="0"),
+        tb.types.KeyboardButton(text="1"),
+        tb.types.KeyboardButton(text="2"),
+        tb.types.KeyboardButton(text="4"),
+        tb.types.KeyboardButton(text="8"),
+    ]
+
+    kbd.add(*items)
+
+    bot.send_message(
+        message.chat.id,
+        text=f"{user.sel.pretty_name}: введите количество для заказа числом",
+        reply_markup=kbd,
+    )
+    bot.register_next_step_handler(message, cart_edit_n)
+
+
+def cart_edit_n(message):
+    user = userdb[message.chat.id]
+    try:
+        i = int(message.text.strip())
+    except ValueError:
+        bot.send_message(message.chat.id, "Извините, не понимаю такое количество.")
+        print(f"Trying to edit {user.sel}")
+        cart_edit(message, user.sel)
+    else:
+        user.set_in_cart(user.sel, i)
+        cart(message)
 
 
 @bot.message_handler(commands=["id"])
@@ -263,10 +374,23 @@ def id(message):
 
 @bot.message_handler(commands=["checkout"])
 def checkout(message):
-    order_str = f"{userdb[message.from_user.id].__repr__()}\nЗаказал(а) биты да байты."
-    bot.send_message(message.chat.id, "ВНИМАНИЕ: функционал в разработке")
+    user = userdb[message.chat.id]
+
+    order_str = f"{user.__repr__()} заказал(а):\n" + user.print_cart()
+    bot.send_message(
+        message.chat.id,
+        "Заказ отправлен!\nВНИМАНИЕ: функционал в разработке",
+    )
     for cid in notify_cids:
-        bot.send_message(cid, order_str)
+        bot.send_message(cid, order_str, parse_mode="HTML")
+
+    user.cart.clear()
+
+
+@bot.message_handler(content_types=["text"])
+@bot.message_handler(commands=["/help"])
+def help(message):
+    bot.send_message(message.chat.id, "Бегите, глупцы")
 
 
 bot.infinity_polling()

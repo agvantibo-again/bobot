@@ -333,7 +333,7 @@ def cart_edit(message, food_id):
         input_field_placeholder="Количество для заказа числом",
     )
     items = [
-        tb.types.KeyboardButton(text="0"),
+        tb.types.KeyboardButton(text="🗑️ Удалить"),
         tb.types.KeyboardButton(text="1"),
         tb.types.KeyboardButton(text="2"),
         tb.types.KeyboardButton(text="4"),
@@ -354,10 +354,19 @@ def cart_edit_n(message):
     user = userdb[message.chat.id]
     try:
         i = int(message.text.strip())
-    except ValueError:
-        bot.send_message(message.chat.id, "Извините, не понимаю такое количество.")
-        print(f"Trying to edit {user.sel}")
-        cart_edit(message, user.sel)
+    except ValueError as err:
+        if "🗑️" in message.text:
+            bot.send_message(
+                message.chat.id,
+                f"{formatting.hitalic(user.sel.pretty_name)}: удалён из корзины",
+                parse_mode="HTML",
+            )
+            user.rm_cart(user.sel)
+            cart(message)
+        else:
+            bot.send_message(message.chat.id, "Извините, не понимаю такое количество.")
+            print(f"{err} trying to edit {user.sel}")
+            cart_edit(message, user.sel)
     else:
         user.set_in_cart(user.sel, i)
         cart(message)
@@ -387,10 +396,11 @@ def checkout(message):
     user.cart.clear()
 
 
-@bot.message_handler(content_types=["text"])
-@bot.message_handler(commands=["/help"])
-def help(message):
-    bot.send_message(message.chat.id, "Бегите, глупцы")
+# @bot.message_handler(content_types=["text"])
+# @bot.message_handler(commands=["/help"])
+# def help(message):
+#     bot.send_message(message.chat.id, "Бегите, глупцы")
 
-
-bot.infinity_polling()
+if __name__ == "__main__":
+    print("0x808A")
+    bot.infinity_polling()

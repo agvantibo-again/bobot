@@ -8,5 +8,10 @@ pkgs.mkShell {
     pytelegrambotapi
     requests
     phonenumbers
+    pyyaml
+
+    google-api-python-client
+    google-auth-httplib2
+    google-auth-oauthlib
   ]);
 }

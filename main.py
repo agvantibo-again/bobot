@@ -202,11 +202,11 @@ def get_phone(message):
 def menu(message):
     global menu_category_kbd
 
-    with open("./assets/menu.png", "rb") as pic:
+    with open("./assets/menu.jpg", "rb") as pic:
         bot.send_photo(
             message.chat.id,
             pic,
-            caption="Здесь должно быть меню, но его съел зайчик >;3",
+            caption="Вот, что мы можем предложить:",
             reply_markup=menu_category_kbd,
         )
 

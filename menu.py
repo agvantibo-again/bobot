@@ -1,9 +1,4 @@
-from yaml import load, dump
-
-try:
-    from yaml import CLoader as Loader, CDumper as Dumper
-except ImportError:
-    from yaml import Loader, Dumper
+import csv
 
 import os.path
 
@@ -17,14 +12,11 @@ from googleapiclient.errors import HttpError
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 # The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = "1ct2XQ5Yj5pSc23mAQrulAEdlRvQ2z702IgrC3X0Y-j8"
+SAMPLE_SPREADSHEET_ID = "1QSQUHio8fKtbjWhvSwzGj4OqN4UtxA8U1BXyQkwiM7s"
 SAMPLE_RANGE_NAME = "Лист1!A:E"
 
 
 def main():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -60,8 +52,15 @@ def main():
             print("No data found.")
             return
 
+        file_dumper = csv.writer(
+            open("menu.csv", "w"),
+            delimiter=" ",
+            quotechar="|",
+            quoting=csv.QUOTE_MINIMAL,
+        )
         for row in values:
             print(", ".join(row))
+            file_dumper.writerow(row)
 
     except HttpError as err:
         print(err)

@@ -2,6 +2,8 @@ import telebot as tb
 from telebot import formatting
 import phonenumbers
 
+import csv
+
 
 # Read token from file
 with open("./.token", "r") as file:
@@ -10,16 +12,6 @@ with open("./.token", "r") as file:
 bot = tb.TeleBot(token)
 userdb = dict()
 menudb = dict()
-categories = {
-    "Напитки": "drinks",
-    "Комбо": "combo",
-    "Десерты": "desserts",
-    "Сеты": "sets",
-    "Роллы": "rolls",
-    "Онигири": "onigiri",
-    "Супы": "soups",
-    "Салаты": "salads",
-}
 
 notify_cids = [-1002574327978]
 
@@ -28,11 +20,13 @@ class Food:
     id = "bytes"
     category = "bits"
     pretty_name = "Программистские Биты"
+    price = 256
 
-    def __init__(self, new_id, new_category, new_name):
+    def __init__(self, new_id, new_category, new_name, new_price):
         self.id = new_id
         self.category = new_category
         self.pretty_name = new_name
+        self.price = new_price
 
     def __repr__(self):
         return f"Блюдо {self.pretty_name} ({self.id})"
@@ -102,7 +96,7 @@ class User:
     def print_cart(self):
         ret = ["У Вас в корзине:"]
         for food, n in self.cart:
-            ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name}")
+            ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name} {food.price}₽")
 
         return "\n".join(ret)
 
@@ -110,7 +104,28 @@ class User:
         return f"Пользователь {self.uname}/{self.uid} | тел {self.print_phone()}"
 
 
-menu_list = (Food("chuka", "salads", "Салат Чука"),)
+# menu_list = (Food("chuka", "salads", "Салат Чука"),)
+# Load menu items from disk
+
+menu_list = []
+
+with open("menu.csv", "r") as menu_file:
+    menu_reader = csv.reader(menu_file, delimiter=' ', quotechar='|')
+    fline = True
+
+    for line in menu_reader:
+        if fline:
+            fline = False
+        else:
+            menu_list.append(Food(line[1], line[0], line[2], int(line[3])))
+
+categories = []
+for item in menu_list:
+    if item.category not in categories:
+        categories.append(item.category)
+
+print(categories)
+print(menu_list)
 
 
 def food_by_id(id):
@@ -132,12 +147,14 @@ for food in menu_list:
         menudb[food.category] = list()
     menudb[food.category].append(food)
 
+print(menudb)
+
 menu_category_items = list()
 menu_category_kbd = tb.types.InlineKeyboardMarkup(row_width=2)
 
-for key in categories.keys():
+for key in categories:
     menu_category_items.append(
-        tb.types.InlineKeyboardButton(text=key, callback_data="m_" + categories[key])
+        tb.types.InlineKeyboardButton(text=key, callback_data="m_" + key)
     )
 
 menu_category_items.append(
@@ -216,6 +233,8 @@ def menu(message):
 def menu_category(callback):
     global menu_category_kbd
 
+    print(f"Callback: {callback.data}")
+
     cb = callback.data.split("_")[1]
 
     if cb == "menu":
@@ -240,7 +259,7 @@ def menu_category(callback):
         for food in menudb[cb]:
             buttons.append(
                 tb.types.InlineKeyboardButton(
-                    text=food.pretty_name, callback_data=f"f_{food.id}"
+                    text=f"{food.pretty_name}", callback_data=f"f_{food.id}"
                 )
             )
         buttons.append(

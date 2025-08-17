@@ -13,7 +13,8 @@ bot = tb.TeleBot(token)
 userdb = dict()
 menudb = dict()
 
-notify_cids = [-1002574327978]
+notify_cids = [-1002574327978] # Bunny Boba order channel
+# notify_cids = [1028608575] # agvantibo DMs
 
 
 class Food:
@@ -54,7 +55,7 @@ class User:
     def print_phone(self):
         return phonenumbers.format_number(
             self.phone, phonenumbers.PhoneNumberFormat.NATIONAL
-        )
+        ).translate({ord(c): None for c in "( )-"})
 
     def add2cart(self, food):
         for i_item in range(len(self.cart)):
@@ -94,14 +95,14 @@ class User:
             self.cart.pop(i)
 
     def print_cart(self):
-        ret = ["У Вас в корзине:"]
+        ret = list()
         for food, n in self.cart:
             ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name} {food.price}₽")
 
         return "\n".join(ret)
 
     def __repr__(self):
-        return f"Пользователь {self.uname}/{self.uid} | тел {self.print_phone()}"
+        return f"Пользователь {self.uname}/{self.uid} | тел{chr(int("A0", 16))}{self.print_phone()}"
 
 
 # menu_list = (Food("chuka", "salads", "Салат Чука"),)
@@ -110,7 +111,7 @@ class User:
 menu_list = []
 
 with open("menu.csv", "r") as menu_file:
-    menu_reader = csv.reader(menu_file, delimiter=' ', quotechar='|')
+    menu_reader = csv.reader(menu_file, delimiter=" ", quotechar="|")
     fline = True
 
     for line in menu_reader:
@@ -316,7 +317,9 @@ def cart(message):
 
     bot.send_message(
         message.chat.id,
-        user.print_cart()
+        "У Вас в корзине:"
+        + "\n"
+        + user.print_cart()
         + "\n\n"
         + "Чтобы отредактировать количество, выберите товар из корзины",
         parse_mode="HTML",

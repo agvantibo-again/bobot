@@ -225,7 +225,7 @@ def get_phone(message):
 def menu(message):
     global menu_category_kbd
 
-    with open("./assets/menu.jpg", "rb") as pic:
+    with open("./assets/menu.png", "rb") as pic:
         bot.send_photo(
             message.chat.id,
             pic,

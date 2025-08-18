@@ -3,18 +3,18 @@ from telebot import formatting
 import phonenumbers
 
 import csv
+import json
 
 
-# Read token from file
-with open("./.token", "r") as file:
-    token = file.read().rstrip("\n")
+# Read configuration from file
+with open("./boba.json", "r") as file:
+    cfg = json.load(file)
 
-bot = tb.TeleBot(token)
+print(f"Current environment: {cfg["_comment"]}")
+notify_cids = cfg["notify_cids"]
+bot = tb.TeleBot(cfg["telegram_token"])
 userdb = dict()
 menudb = dict()
-
-notify_cids = [-1002574327978]  # Bunny Boba order channel
-# notify_cids = [1028608575]  # agvantibo DMs
 
 
 class Food:

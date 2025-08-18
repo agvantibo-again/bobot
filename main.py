@@ -13,11 +13,13 @@ bot = tb.TeleBot(token)
 userdb = dict()
 menudb = dict()
 
-notify_cids = [-1002574327978] # Bunny Boba order channel
-# notify_cids = [1028608575] # agvantibo DMs
+notify_cids = [-1002574327978]  # Bunny Boba order channel
+# notify_cids = [1028608575]  # agvantibo DMs
 
 
 class Food:
+    """Представляет пункт меню кафе"""
+
     id = "bytes"
     category = "bits"
     pretty_name = "Программистские Биты"
@@ -34,6 +36,8 @@ class Food:
 
 
 class User:
+    """Представляет досье на пользователя бота"""
+
     uid = 0
     uname = str()
     phone = phonenumbers.PhoneNumber()
@@ -85,9 +89,10 @@ class User:
         return False
 
     def prune(self):
+        """Удаляет невещественные записи в корзине"""
         kill_list = list()
         for i_item in range(len(self.cart)):
-            if not self.cart[i_item][1]:
+            if self.cart[i_item][1] <= 0:
                 kill_list.append(i_item)
 
         for i in kill_list:

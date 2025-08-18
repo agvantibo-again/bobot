@@ -5,12 +5,13 @@ import phonenumbers
 import csv
 import json
 
+NBSP: str = chr(int("A0", 16))
 
 # Read configuration from file
 with open("./boba.json", "r") as file:
     cfg = json.load(file)
 
-print(f"Current environment: {cfg["_comment"]}")
+print(f"Current environment: {cfg['_comment']}")
 notify_cids = cfg["notify_cids"]
 bot = tb.TeleBot(cfg["telegram_token"])
 userdb = dict()
@@ -107,7 +108,7 @@ class User:
         return "\n".join(ret)
 
     def __repr__(self):
-        return f"Пользователь {self.uname}/{self.uid} | тел{chr(int("A0", 16))}{self.print_phone()}"
+        return f"Пользователь {self.uname}/{self.uid} | тел{NBSP}{self.print_phone()}"
 
 
 # menu_list = (Food("chuka", "salads", "Салат Чука"),)

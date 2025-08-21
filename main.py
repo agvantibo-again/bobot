@@ -118,13 +118,10 @@ menu_list = []
 
 with open("menu.csv", "r") as menu_file:
     menu_reader = csv.reader(menu_file, delimiter=" ", quotechar="|")
-    fline = True
+    next(menu_reader)  # skip top row (menu header)
 
-    for line in menu_reader:
-        if fline:
-            fline = False
-        else:
-            menu_list.append(Food(line[1], line[0], line[2], int(line[3])))
+    for category, ID, pretty_name, price in menu_reader:
+        menu_list.append(Food(id, category, pretty_name, int(price)))
 
 categories = []
 for item in menu_list:

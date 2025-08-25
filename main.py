@@ -49,6 +49,7 @@ class User:
         self.uid = new_uid
         self.uname = new_uname
         self.cart = list()
+        self.add2cart(food_by_id("utensils"))
 
     def set_phone(self, new_phone):
         try:
@@ -102,13 +103,17 @@ class User:
 
     def print_cart(self):
         ret = list()
+        total = 0
         for food, n in self.cart:
-            ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name} {food.price}₽")
+            total += food.price * n
+            ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name} [{food.price}₽]")
+
+        ret.append(f"{formatting.hbold("Итого:")}\t{total}₽")
 
         return "\n".join(ret)
 
     def __repr__(self):
-        return f"Пользователь {self.uname}/{self.uid} | тел{NBSP}{self.print_phone()}"
+        return f"Пользователь @{self.uname}/{self.uid} | тел{NBSP}{self.print_phone()}"
 
 
 # menu_list = (Food("chuka", "salads", "Салат Чука"),)
@@ -121,7 +126,9 @@ with open("menu.csv", "r") as menu_file:
     next(menu_reader)  # skip top row (menu header)
 
     for category, ID, pretty_name, price in menu_reader:
-        menu_list.append(Food(id, category, pretty_name, int(price)))
+        menu_list.append(Food(ID, category, pretty_name, int(price)))
+
+menu_list.append(Food("utensils", "Дополнительно", "Столовые приборы", 0))
 
 categories = []
 for item in menu_list:
@@ -383,7 +390,7 @@ def cart_edit_n(message):
         if "🗑️" in message.text:
             bot.send_message(
                 message.chat.id,
-                f"{formatting.hitalic(user.sel.pretty_name)}: удалён из корзины",
+                f"{formatting.hitalic(user.sel.pretty_name)}: удалено из корзины",
                 parse_mode="HTML",
             )
             user.rm_cart(user.sel)

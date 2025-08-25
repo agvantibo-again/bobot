@@ -108,7 +108,7 @@ class User:
             total += food.price * n
             ret.append(f"{formatting.hbold(str(n))}x {food.pretty_name} [{food.price}₽]")
 
-        ret.append(f"{formatting.hbold("Итого:")}\t{total}₽")
+        ret.append(f"{formatting.hbold('Итого:')}\t{total}₽")
 
         return "\n".join(ret)
 

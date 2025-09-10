@@ -6,6 +6,7 @@ import phonenumbers
 import csv
 import json
 import math
+import logging
 
 NBSP: str = chr(int("A0", 16))
 roll_threshold = 2
@@ -19,6 +20,8 @@ notify_cids = cfg["notify_cids"]
 bot = tb.TeleBot(cfg["telegram_token"])
 userdb = dict()
 menudb = dict()
+
+log = logging.getLogger("bobot")
 
 
 class Food:
@@ -112,7 +115,7 @@ class User:
                 kill_list.append(i_item)
 
         for i in kill_list:
-            print(f"Pruned {self.cart[i]}")
+            log.info(f"Pruned {self.cart[i]}")
             self.cart.pop(i)
 
     def print_cart(self):
@@ -180,8 +183,6 @@ categories = []
 for item in menu_list:
     if item.category not in categories:
         categories.append(item.category)
-
-print(categories)
 print(menu_list)
 
 
@@ -204,7 +205,7 @@ for food in menu_list:
         menudb[food.category] = list()
     menudb[food.category].append(food)
 
-print(menudb)
+log.info(menudb)
 
 menu_category_items = list()
 menu_category_kbd = quick_markup(
@@ -261,7 +262,7 @@ bot.set_my_commands([c_start, c_phone, c_menu, c_cart, c_out])
 def get_user_or_bail(message):
     id = message.chat.id
     if id not in userdb.keys():
-        print("Bailed — not good!")
+        log.error("Bailed — not good!")
         bot.send_message(
             chat_id=message.chat.id,
             reply_to_message_id=message.id,
@@ -351,7 +352,7 @@ def menu(message):
 @bot.callback_query_handler(func=lambda a: "m_" in a.data)
 # m_ are global menu categories
 def menu_category(callback):
-    print(f"Callback: {callback.data}")
+    log.info(f"Callback: {callback.data}")
 
     cb = callback.data.split("_")[1]
 
@@ -403,7 +404,7 @@ def menu_order(callback):
 
     food = food_by_id(cb)
 
-    print(
+    log.info(
         f"Menu order {food.pretty_name} chat.id {callback.message.chat.id} user.id {callback.message.from_user.id}"
     )
 
@@ -528,7 +529,7 @@ def cart_edit_n(message):
             bot.send_message(
                 chat_id=message.chat.id, text="Извините, не понимаю такое количество."
             )
-            print(f"{err} trying to edit {user.sel}")
+            log.error(f"{err} trying to edit {user.sel}")
             cart_edit(message, user.sel)
     else:
         user.set_in_cart(user.sel, i)
@@ -598,7 +599,7 @@ def checkout_callback(callback):
     user = get_user_or_bail(callback.message)
     if not user:
         return None
-    print(f"Callback: {callback.data}")
+    log.info(f"Callback: {callback.data}")
 
     if cb == "card":
         user.payment_cash = False

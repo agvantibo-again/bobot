@@ -186,7 +186,7 @@ class User:
         for food, n in self.cart:
             if not food.discounted:
                 total += food.price * n
-            ret.append(f"{fmt.hbold(str(n))}x {food.pretty_name} [{food.price if not food.discounted else fmt.hstrikethrough(str(food.price)) + " 0"}₽]")
+            ret.append(f"{fmt.hbold(str(n))}x {food.pretty_name} [{food.price if not food.discounted else fmt.hstrikethrough(str(food.price)) + ' 0'}₽]")
 
         ret.append(f"{fmt.hbold('Итого:')}\t{total}₽")
 
@@ -212,7 +212,7 @@ class User:
         if not self.time:
             ret.append(timeam_string + " 🚄 Как можно скорее")
         else:
-            ret.append(timeam_string + f" начнём в {self.time}")
+            ret.append(timeam_string + f" {self.time}")
 
         ret.append("")
         if self.comment:

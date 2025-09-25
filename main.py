@@ -302,7 +302,7 @@ time_kbd = tb.types.ReplyKeyboardMarkup(
     one_time_keyboard=True,
     input_field_placeholder="Задержка заказа",
 )
-rm_comment_kbd.add("⏰ Как можно скорее")
+time_kbd.add("⏰ Как можно скорее")
 # location_pick_kbd = tb.types.ReplyKeyboardMarkup(
 #     row_width=1,
 #     resize_keyboard=True,
@@ -825,7 +825,6 @@ def checkout_end(message):
             chat_id=cid,
             text=order_str,
             parse_mode="HTML",
-            reply_markup=tb.types.ReplyKeyboardRemove(),
         )
 
 

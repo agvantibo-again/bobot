@@ -59,12 +59,15 @@ def main():
             quoting=csv.QUOTE_MINIMAL,
         )
         for row in values:
-            print(", ".join(row))
-            file_dumper.writerow(row)
+            lrow = list(row)
+            if len(lrow) < 5:
+                lrow.append("∅")
+            file_dumper.writerow(lrow)
 
     except HttpError as err:
         print(err)
 
+    print(open("menu.csv").readlines())
 
 if __name__ == "__main__":
     main()

@@ -7,6 +7,7 @@ import csv
 import json
 import math
 import logging
+from copy import deepcopy
 
 NBSP: str = chr(int("A0", 16))
 roll_threshold = 2
@@ -31,15 +32,22 @@ class Food:
     category = "bits"
     pretty_name = "Программистские Биты"
     price = 256
+    bonus = list()
+    discounted = False
 
-    def __init__(self, new_id, new_category, new_name, new_price):
+    def __init__(self, new_id, new_category, new_name, new_price, new_bonus):
         self.id = new_id
         self.category = new_category
         self.pretty_name = new_name
         self.price = new_price
+        self.bonus = new_bonus if new_bonus != ["∅"] else list()
+        self.discounted = False
+
+    def __eq__(n, m):
+        return n.id == m.id and n.discounted == m.discounted
 
     def __repr__(self):
-        return f"Блюдо {self.pretty_name} ({self.id})"
+        return f"Блюдо {self.pretty_name}{'(бонус)' if self.discounted else ''} ({self.id})"
 
 
 class User:
@@ -48,7 +56,7 @@ class User:
     uid = 0
     uname = str()
     phone: phonenumbers.PhoneNumber = phonenumbers.PhoneNumber()
-    sel: Food = Food("bytes", "bits", "Программистские биты", math.pi)
+    sel: Food = Food("bytes", "bits", "Программистские биты", math.pi, [])
     cart = list()
 
     payment_cash = False
@@ -67,6 +75,10 @@ class User:
         self.uname = new_uname
         self.cart = list()
         self.add2cart(food_by_id("utensils"))
+        self.roll_order = 0
+        self.roll_cart = 0
+        self.order_message_id = 0
+        self.cart_message_id = 0
 
     def set_phone(self, new_phone):
         try:
@@ -81,49 +93,100 @@ class User:
         ).translate({ord(c): None for c in "( )-"})
 
     def add2cart(self, food):
+        for bonus in food.bonus:
+            self.add2cart(food_by_id(bonus))
         for i_item in range(len(self.cart)):
             if self.cart[i_item][0].id == food.id:
                 self.cart[i_item][1] += 1
                 return True
-        self.cart.append([food, 1])
+        self.cart.append([deepcopy(food), 1])
+        self.prune()
         self.prune()
 
         return True
 
     def set_in_cart(self, food, n):
+        al_set = False
         for i_item in range(len(self.cart)):
             if self.cart[i_item][0].id == food.id:
-                self.cart[i_item][1] = n
-                self.prune()
+                if al_set:
+                    self.cart.pop(i_item)
+                    self.prune()
+                    self.prune()
+                    return True
+                else:
+                    self.cart[i_item][1] = n
+                    al_set = True
+        self.prune()
+        self.prune()
+        return True
 
-    def rm_cart(self, food):
+    # def rm_cart(self, food):
+    #     for i_item in range(len(self.cart)):
+    #         if self.cart[i_item][0].id == food.id:
+    #             self.cart[i_item][1] -= 1
+    #         if self.cart[i_item][1] <= 0:
+    #             self.cart.pop(i_item)
+    #             self.prune()
+    #             return True
+
+    #     return False
+
+    def find_item_in_cart(self, id):
         for i_item in range(len(self.cart)):
-            if self.cart[i_item][0].id == food.id:
-                self.cart[i_item][1] -= 1
-            if self.cart[i_item][1] <= 0:
-                self.cart.pop(i_item)
-                self.prune()
-                return True
+            if self.cart[i_item][0].id == id:
+                return i_item
+        return None
 
-        return False
 
     def prune(self):
-        """Удаляет невещественные записи в корзине"""
-        kill_list = list()
-        for i_item in range(len(self.cart)):
-            if self.cart[i_item][1] <= 0:
-                kill_list.append(i_item)
+        """Удаляет невещественные записи в корзине
+        Выставляет бесплатные бонусы"""
 
-        for i in kill_list:
-            log.info(f"Pruned {self.cart[i]}")
-            self.cart.pop(i)
+        freebies = dict()
+        for item, n in self.cart:
+            if item.bonus:
+                for b in item.bonus:
+                    if b not in freebies.keys():
+                        freebies[b] = 0
+                    freebies[b] += 1
+
+        for i_item in range(1, len(self.cart)):
+            if self.cart[i_item][0].id not in freebies.keys():
+                self.cart[i_item][0].discounted = False
+                if self.cart[i_item - 1][0] == self.cart[i_item][0]:
+                    self.cart[i_item - 1][1] += self.cart[i_item][1]
+                    self.cart[i_item][1] = 0
+
+        for item in freebies.keys():
+            i_item = self.find_item_in_cart(item)
+            if not i_item:
+                continue
+
+            if i_item + 1 == len(self.cart) or self.cart[i_item + 1][0].id != item:
+                    if not self.cart[i_item][0].discounted: # if we only had orig
+                        self.cart.insert(i_item + 1, [deepcopy(self.cart[i_item][0]), 0])
+                        self.cart[i_item + 1][0].discounted = True
+                    else: # if we only had bonus, add non-bonus
+                        self.cart.insert(i_item, deepcopy(self.cart[i_item]))
+                        self.cart[i_item][0].discounted = False
+            else:
+                self.cart[i_item][1] += self.cart[i_item + 1][1]
+            self.cart[i_item][1] -= freebies[item]
+            self.cart[i_item + 1][1] = freebies[item]
+            if self.cart[i_item][1] < 0:
+                self.cart[i_item + 1][1] += self.cart[i_item][1] # transfer whatever applies to bonus
+
+        self.cart = list(filter(lambda a: a[1] > 0, self.cart))
+
 
     def print_cart(self):
         ret = list()
         total = 0
         for food, n in self.cart:
-            total += food.price * n
-            ret.append(f"{fmt.hbold(str(n))}x {food.pretty_name} [{food.price}₽]")
+            if not food.discounted:
+                total += food.price * n
+            ret.append(f"{fmt.hbold(str(n))}x {food.pretty_name} [{food.price if not food.discounted else fmt.hstrikethrough(str(food.price)) + " 0"}₽]")
 
         ret.append(f"{fmt.hbold('Итого:')}\t{total}₽")
 
@@ -176,8 +239,8 @@ with open("menu.csv", "r") as menu_file:
     menu_reader = csv.reader(menu_file, delimiter=" ", quotechar="|")
     next(menu_reader)  # skip top row (menu header)
 
-    for category, ID, pretty_name, price in menu_reader:
-        menu_list.append(Food(ID, category, pretty_name, int(price)))
+    for category, ID, pretty_name, price, bonus in menu_reader:
+        menu_list.append(Food(ID, category, pretty_name, int(price), bonus.split()))
 
 categories = []
 for item in menu_list:
@@ -445,18 +508,22 @@ def update_cart(message):
         user.roll_cart = 0
         cart(message)
     else:
-        user.roll_cart += 1
-        bot.edit_message_text(
-            chat_id=id,
-            message_id=user.cart_message_id,
-            text="У Вас в корзине:"
-            + "\n"
-            + user.print_cart()
-            + "\n\n"
-            + "Чтобы отредактировать количество, выберите товар из корзины",
-            parse_mode="HTML",
-            reply_markup=build_cart_keyboard(user),
-        )
+        try:
+            user.roll_cart += 1
+            bot.edit_message_text(
+                chat_id=id,
+                message_id=user.cart_message_id,
+                text="У Вас в корзине:"
+                + "\n"
+                + user.print_cart()
+                + "\n\n"
+                + "Чтобы отредактировать количество, выберите товар из корзины",
+                parse_mode="HTML",
+                reply_markup=build_cart_keyboard(user),
+            )
+        except tb.apihelper.ApiTelegramException as err:
+            if "Bad Request: message is not modified" not in err.description:
+                raise err
 
 
 def build_cart_keyboard(user):
@@ -466,7 +533,7 @@ def build_cart_keyboard(user):
     for food, q in user.cart:
         items.append(
             tb.types.InlineKeyboardButton(
-                text=food.pretty_name, callback_data="c_" + food.id
+                text=f"{food.pretty_name}{'(бонус)' if food.discounted else ''}", callback_data="c_" + food.id
             )
         )
 
@@ -523,7 +590,8 @@ def cart_edit_n(message):
                 parse_mode="HTML",
                 reply_markup=tb.types.ReplyKeyboardRemove(),
             )
-            user.rm_cart(user.sel)
+            user.set_in_cart(user.sel, 0)
+            update_cart(message)
             cart(message)
         else:
             bot.send_message(
